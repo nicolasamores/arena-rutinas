@@ -118,32 +118,38 @@ nav { display: flex; flex-direction: column; gap: 3px; }
 }
 .search-input:focus { border-color: var(--accent); }
 
-/* PATIENTS GRID */
-.patients-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
-.patient-card {
+/* PATIENTS LIST (accordion) */
+.patients-grid { display: flex; flex-direction: column; gap: 6px; }
+.patient-row {
  background: var(--surface); border: 1px solid var(--border);
- border-radius: var(--radius); padding: 18px 20px;
- cursor: pointer; transition: all 0.15s;
+ border-radius: var(--radius); cursor: pointer; transition: all 0.15s; overflow: hidden;
 }
-.patient-card:hover { border-color: #b0c8ba; box-shadow: var(--shadow); transform: translateY(-1px); }
+.patient-row:hover { border-color: #b0c8ba; }
+.p-row-summary { display: flex; align-items: center; gap: 12px; padding: 10px 16px; }
+.p-chevron { margin-left: auto; color: var(--muted); transition: transform 0.2s; flex-shrink: 0; }
+.patient-row.expanded { border-color: #b0c8ba; box-shadow: var(--shadow); }
+.patient-row.expanded .p-chevron { transform: rotate(90deg); color: var(--accent); }
+.p-row-details { max-height: 0; overflow: hidden; transition: max-height 0.2s ease; padding: 0 16px; }
+.patient-row.expanded .p-row-details { max-height: 220px; padding: 0 16px 14px; }
+.p-row-details-inner { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding-top: 10px; border-top: 1px solid var(--border); }
 .p-avatar {
- width: 42px; height: 42px; border-radius: 50%;
+ width: 34px; height: 34px; border-radius: 50%;
  background: #ddeedd; color: #115b30;
  display: flex; align-items: center; justify-content: center;
- font-weight: 600; font-size: 15px; margin-bottom: 12px;
+ font-weight: 600; font-size: 13px; flex-shrink: 0;
  font-family: 'Fraunces', serif;
 }
-.p-name { font-family: 'Fraunces', serif; font-size: 16px; font-weight: 600; margin-bottom: 3px; }
-.p-meta { color: var(--muted); font-size: 12px; margin-bottom: 8px; }
+.p-name { font-family: 'Fraunces', serif; font-size: 15px; font-weight: 600; }
+.p-meta { color: var(--muted); font-size: 12px; flex-shrink: 0; }
 .p-badge {
  display: inline-flex; align-items: center; gap: 5px;
- font-size: 11px; padding: 3px 9px; border-radius: 20px; font-weight: 500;
+ font-size: 11px; padding: 3px 9px; border-radius: 20px; font-weight: 500; flex-shrink: 0;
 }
 .badge-green { background: var(--accent-light); color: var(--accent); }
 .badge-orange { background: #fdf0e8; color: var(--accent2); }
 .badge-gray { background: var(--bg); color: var(--muted); border: 1px solid var(--border); }
-.p-diag { font-size: 12px; color: var(--muted); margin: 6px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.p-actions { display: flex; gap: 8px; margin-top: 12px; }
+.p-diag { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.p-actions { display: flex; gap: 8px; margin-left: auto; flex-shrink: 0; }
 
 /* TWO COL */
 .two-col { display: grid; grid-template-columns: 1fr 1.5fr; gap: 20px; align-items: start; }
@@ -3755,11 +3761,19 @@ function showView(name) {
 }
 
 // ========== PATIENTS ==========
+let expandedPatientIds = new Set();
+
+function togglePatientRow(id) {
+ if (expandedPatientIds.has(id)) expandedPatientIds.delete(id);
+ else expandedPatientIds.add(id);
+ renderPatients(document.getElementById('search-p')?.value || '');
+}
+
 function renderPatients(filter = '') {
  const grid = document.getElementById('patients-grid');
  const list = (filter ? patients.filter(p => normalizeStr(p.nombre+' '+p.apellido+' '+p.apellido+' '+p.nombre).includes(normalizeStr(filter))) : [...patients]).sort((a,b) => (a.apellido+' '+a.nombre).localeCompare(b.apellido+' '+b.nombre, 'es'));
  if (!list.length) {
- grid.innerHTML = `<div class="empty" style="grid-column:1/-1">
+ grid.innerHTML = `<div class="empty">
  <svg width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg>
  <p>Sin resultados</p></div>`;
  return;
@@ -3769,18 +3783,26 @@ function renderPatients(filter = '') {
  const diag = diagnoses.find(d => d.id === p.diagId);
  migratePatientEpisodes(p);
  const nr = p.episodios.reduce((acc,e)=>acc+(e.routines||[]).length,0);
- return `<div class="patient-card" onclick="openDetail(${p.id})">
- <div class="p-avatar">${init}</div>
- <div class="p-name">${p.apellido} ${p.nombre}</div>
- <div class="p-meta">${p.fechaNac ? calcAge(p.fechaNac)+' años' : (p.edad ? p.edad+' años' : '—')}</div>
- ${diag ? `<div class="p-diag">🩺 ${diag.nombre}</div>` : ''}
- <span class="p-badge ${nr ? 'badge-green' : 'badge-orange'}">${nr ? `✓ ${nr} rutina${nr>1?'s':''}` : '⚠ Sin rutina'}</span>
- <div class="p-actions" onclick="event.stopPropagation()">
- <button class="btn btn-secondary btn-sm" onclick="openDetail(${p.id})">Ver</button>
- <button class="btn btn-sm ${pinnedPatients.has(p.id) ? 'btn-primary' : 'btn-ghost'}" onclick="togglePinPatient(${p.id})" title="${pinnedPatients.has(p.id) ? 'Quitar acceso rápido' : 'Acceso rápido'}">
-   <svg width="11" height="11" fill="${pinnedPatients.has(p.id) ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
- </button>
- <button class="btn btn-danger btn-sm" onclick="deletePatient(${p.id})">×</button>
+ const isOpen = expandedPatientIds.has(p.id);
+ return `<div class="patient-row ${isOpen?'expanded':''}" onclick="togglePatientRow(${p.id})">
+ <div class="p-row-summary">
+   <div class="p-avatar">${init}</div>
+   <div class="p-name">${p.apellido} ${p.nombre}</div>
+   <svg class="p-chevron" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+ </div>
+ <div class="p-row-details">
+   <div class="p-row-details-inner">
+     <div class="p-meta">${p.fechaNac ? calcAge(p.fechaNac)+' años' : (p.edad ? p.edad+' años' : '—')}</div>
+     ${diag ? `<div class="p-diag">🩺 ${diag.nombre}</div>` : ''}
+     <span class="p-badge ${nr ? 'badge-green' : 'badge-orange'}">${nr ? `✓ ${nr} rutina${nr>1?'s':''}` : '⚠ Sin rutina'}</span>
+     <div class="p-actions" onclick="event.stopPropagation()">
+       <button class="btn btn-secondary btn-sm" onclick="openDetail(${p.id})">Ver</button>
+       <button class="btn btn-sm ${pinnedPatients.has(p.id) ? 'btn-primary' : 'btn-ghost'}" onclick="togglePinPatient(${p.id})" title="${pinnedPatients.has(p.id) ? 'Quitar acceso rápido' : 'Acceso rápido'}">
+         <svg width="11" height="11" fill="${pinnedPatients.has(p.id) ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+       </button>
+       <button class="btn btn-danger btn-sm" onclick="deletePatient(${p.id})">×</button>
+     </div>
+   </div>
  </div>
  </div>`;
  }).join('');
