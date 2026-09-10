@@ -62,18 +62,6 @@ nav { display: flex; flex-direction: column; gap: 3px; }
 .sidebar.collapsed .nav-item svg { flex-shrink: 0; width: 18px; height: 18px; }
 .sidebar-footer { margin-top: auto; padding: 12px 8px 0; border-top: 1px solid rgba(255,255,255,0.15); transition: opacity 0.15s; }
 
-.fab-sync {
- position: fixed; bottom: 22px; right: 22px; z-index: 500;
- width: 46px; height: 46px; border-radius: 50%;
- background: var(--accent); color: #fff; border: none;
- display: flex; align-items: center; justify-content: center;
- cursor: pointer; box-shadow: 0 4px 14px rgba(17,91,48,0.35);
- transition: transform 0.15s;
-}
-.fab-sync:hover { transform: scale(1.07); }
-.fab-sync:active { transform: scale(0.94); }
-.fab-sync.syncing { pointer-events: none; opacity: 0.85; }
-.fab-sync.syncing svg { animation: fab-spin 0.8s linear infinite; }
 @keyframes fab-spin { to { transform: rotate(360deg); } }
 .icon-spin { animation: fab-spin 0.8s linear infinite; }
 .sidebar-footer p { font-size: 11px; color: rgba(200,219,185,0.7); white-space: nowrap; }
@@ -697,10 +685,6 @@ nav { display: flex; flex-direction: column; gap: 3px; }
  </aside>
 
  <main class="main">
-
- <button id="fab-sync-btn" class="fab-sync" onclick="forceSync()" title="Actualizar datos desde la nube">
-   <svg id="fab-sync-icon" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
- </button>
 
  <!-- === PATIENTS VIEW === -->
  <div class="view active" id="view-patients">
@@ -7201,8 +7185,6 @@ async function finishCSVImport(patientId, routinesToImport) {
 async function forceSync() {
   const btn = document.getElementById('sync-btn');
   if (btn) { btn.innerHTML = 'Guardando...'; btn.disabled = true; }
-  const fab = document.getElementById('fab-sync-btn');
-  if (fab) fab.classList.add('syncing');
   const headerBtn = document.getElementById('header-sync-btn');
   const headerIcon = document.getElementById('header-sync-icon');
   if (headerBtn) headerBtn.disabled = true;
@@ -7276,7 +7258,6 @@ async function forceSync() {
     btn.innerHTML = '<svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg> Sincronizar';
     btn.disabled = false;
   }
-  if (fab) fab.classList.remove('syncing');
   if (headerBtn) headerBtn.disabled = false;
   if (headerIcon) headerIcon.classList.remove('icon-spin');
   toast(`Sincronización completa ✓${savedCount ? ` · ${savedCount} elemento${savedCount>1?'s':''} guardado${savedCount>1?'s':''}` : ''}`);
