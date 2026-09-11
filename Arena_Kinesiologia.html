@@ -114,7 +114,7 @@ nav { display: flex; flex-direction: column; gap: 3px; }
 .search-wrap { position: relative; margin-bottom: 18px; }
 .search-wrap svg { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; }
 .search-input {
- width: 100%; padding: 9px 13px 9px 36px;
+ width: 100%; padding: 9px 36px 9px 36px;
  border: 1px solid var(--border); border-radius: 8px;
  background: var(--surface); font-family: 'DM Sans'; font-size: 14px; color: var(--text);
  outline: none; transition: border 0.15s;
@@ -680,6 +680,10 @@ nav { display: flex; flex-direction: column; gap: 3px; }
      <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
      Sincronizar
    </button>
+   <button class="btn btn-ghost btn-xs" id="backup-btn" style="justify-content:center;color:rgba(200,219,185,0.8);border-color:rgba(200,219,185,0.25);font-size:10px;width:100%" onclick="descargarBackup()">
+     <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+     Descargar backup
+   </button>
  </div>
  </div>
  </aside>
@@ -695,6 +699,10 @@ nav { display: flex; flex-direction: column; gap: 3px; }
  <svg id="header-sync-icon" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
  Actualizar
  </button>
+ <button class="btn btn-secondary" onclick="abrirPapelera()" title="Ver pacientes eliminados">
+ <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+ Papelera
+ </button>
  <button class="btn btn-primary" onclick="openModal('add-patient')">
  <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
  Nuevo Paciente
@@ -703,7 +711,8 @@ nav { display: flex; flex-direction: column; gap: 3px; }
  </div>
  <div class="search-wrap">
  <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
- <input class="search-input" id="search-p" placeholder="Buscar por nombre..." oninput="renderPatients(this.value)">
+ <input class="search-input" id="search-p" placeholder="Buscar por nombre o DNI..." oninput="renderPatients(this.value); document.getElementById('search-p-clear').style.display = this.value ? 'flex' : 'none'">
+ <button id="search-p-clear" onclick="clearPatientSearch()" style="display:none;position:absolute;right:12px;top:50%;transform:translateY(-50%);width:20px;height:20px;border:none;background:var(--bg);color:var(--muted);border-radius:50%;align-items:center;justify-content:center;cursor:pointer;font-size:13px;line-height:1" title="Limpiar búsqueda">✕</button>
  </div>
  <div class="patients-grid" id="patients-grid"></div>
  </div>
@@ -748,8 +757,8 @@ nav { display: flex; flex-direction: column; gap: 3px; }
  <!-- === DIAGNOSES VIEW === -->
  <div class="view" id="view-diagnoses">
  <div class="page-header">
- <div class="page-title">Diagnósticos <small>Administrá la lista de diagnósticos disponibles</small></div>
- <button class="btn btn-primary" onclick="openModal('add-diag')">
+ <div class="page-title">Diagnósticos <small>Lista fija de diagnósticos disponibles</small></div>
+ <button class="btn btn-secondary" disabled title="Deshabilitado: la lista de diagnósticos es fija y no se puede editar desde la app">
  <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
  Agregar Diagnóstico
  </button>
@@ -1392,6 +1401,20 @@ nav { display: flex; flex-direction: column; gap: 3px; }
     <div class="modal-footer" style="padding:14px 24px;margin:0">
       <button class="btn btn-secondary" onclick="closeModal('resumen-hc')">Cancelar</button>
       <button class="btn btn-primary" id="rhc-generar-btn" onclick="generarResumenHCPDF()" disabled>Generar PDF</button>
+    </div>
+  </div>
+</div>
+
+<!-- PAPELERA -->
+<div class="overlay" id="modal-papelera">
+  <div class="modal" style="width:460px;max-height:80vh;display:flex;flex-direction:column;padding:0">
+    <div style="padding:24px 24px 0">
+      <div class="modal-title" style="margin-bottom:6px">Papelera</div>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:16px">Pacientes eliminados. Podés restaurarlos o borrarlos para siempre.</p>
+    </div>
+    <div id="papelera-list" style="padding:0 24px 20px;overflow-y:auto;flex:1"></div>
+    <div class="modal-footer" style="padding:14px 24px;margin:0">
+      <button class="btn btn-secondary" onclick="closeModal('papelera')">Cerrar</button>
     </div>
   </div>
 </div>
@@ -3772,15 +3795,30 @@ function showView(name) {
 // ========== PATIENTS ==========
 let expandedPatientIds = new Set();
 
+function clearPatientSearch() {
+ const input = document.getElementById('search-p');
+ input.value = '';
+ document.getElementById('search-p-clear').style.display = 'none';
+ renderPatients('');
+ input.focus();
+}
+
 function togglePatientRow(id) {
- if (expandedPatientIds.has(id)) expandedPatientIds.delete(id);
- else expandedPatientIds.add(id);
+ if (expandedPatientIds.has(id)) {
+   expandedPatientIds.delete(id);
+ } else {
+   expandedPatientIds.clear();
+   expandedPatientIds.add(id);
+ }
  renderPatients(document.getElementById('search-p')?.value || '');
 }
 
 function renderPatients(filter = '') {
  const grid = document.getElementById('patients-grid');
- const list = (filter ? patients.filter(p => normalizeStr(p.nombre+' '+p.apellido+' '+p.apellido+' '+p.nombre).includes(normalizeStr(filter))) : [...patients]).sort((a,b) => (a.apellido+' '+a.nombre).localeCompare(b.apellido+' '+b.nombre, 'es'));
+ const list = (filter ? patients.filter(p => {
+   const dniDigits = (p.dni||'').replace(/\D/g,'');
+   return normalizeStr(p.nombre+' '+p.apellido+' '+p.apellido+' '+p.nombre+' '+(p.dni||'')+' '+dniDigits).includes(normalizeStr(filter));
+ }) : [...patients]).sort((a,b) => (a.apellido+' '+a.nombre).localeCompare(b.apellido+' '+b.nombre, 'es'));
  if (!list.length) {
  grid.innerHTML = `<div class="empty">
  <svg width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg>
@@ -4055,7 +4093,7 @@ function editPatient(id) {
  openModal('add-patient');
 }
 
-function savePatient() {
+async function savePatient() {
  const nombre = document.getElementById('apt-nombre').value.trim();
  const apellido = document.getElementById('apt-apellido').value.trim();
  if (!nombre || !apellido) { shake('apt-nombre'); return; }
@@ -4081,14 +4119,17 @@ function savePatient() {
      return;
    }
  }
+ let patientRef;
  if (editId) {
  const idx = patients.findIndex(p => p.id === editId);
  patients[idx] = { ...patients[idx], ...data };
- lsSave(); toast('Paciente actualizado ✓');
+ patientRef = patients[idx];
  } else {
- patients.push({ id: nextPId++, routines: [], ...data });
- lsSave(); toast('Paciente añadido ✓');
+ patientRef = { id: null, routines: [], episodios: [], ...data };
+ patients.push(patientRef);
  }
+ await dbSavePatient(patientRef);
+ toast(editId ? 'Paciente actualizado ✓' : 'Paciente añadido ✓');
  closeModal('add-patient');
  clearPatientForm();
  renderPatients();
@@ -4099,12 +4140,51 @@ function savePatient() {
  }
 }
 
-function deletePatient(id) {
- if (!confirm('¿Eliminar este paciente?')) return;
+async function deletePatient(id) {
+ if (!confirm('¿Mover este paciente a la papelera?')) return;
+ const { error } = await sb.from('patients').update({ deleted_at: new Date().toISOString() }).eq('id', id);
+ if (error) { toast('⚠️ No se pudo eliminar: '+error.message, 5000); return; }
  patients = patients.filter(p => p.id !== id);
  closeModal('patient-detail');
  renderPatients();
- lsSave(); toast('Paciente eliminado');
+ toast('Paciente movido a la papelera');
+}
+
+async function abrirPapelera() {
+ const el = document.getElementById('papelera-list');
+ el.innerHTML = `<p style="font-size:12px;color:var(--muted)">Cargando...</p>`;
+ openModal('papelera');
+ const { data, error } = await sb.from('patients').select('*').not('deleted_at', 'is', null).order('deleted_at', { ascending: false });
+ if (error) { el.innerHTML = `<p style="font-size:12px;color:var(--danger)">Error al cargar la papelera.</p>`; return; }
+ if (!data || !data.length) { el.innerHTML = `<p style="font-size:12px;color:var(--muted)">La papelera está vacía.</p>`; return; }
+ el.innerHTML = data.map(p => {
+   const fecha = p.deleted_at ? new Date(p.deleted_at).toLocaleDateString('es-AR') : '';
+   return `<div class="hist-item">
+     <div style="flex:1;min-width:0">
+       <div style="font-size:13px;font-weight:600">${p.apellido}, ${p.nombre}</div>
+       <div style="font-size:11px;color:var(--muted)">Eliminado el ${fecha}${p.dni ? ' · DNI '+p.dni : ''}</div>
+     </div>
+     <button class="btn btn-secondary btn-sm" onclick="restaurarPaciente(${p.id})">Restaurar</button>
+     <button class="mc-remove-row" onclick="eliminarPacienteDefinitivo(${p.id})" title="Eliminar definitivamente">✕</button>
+   </div>`;
+ }).join('');
+}
+
+async function restaurarPaciente(id) {
+ const { error } = await sb.from('patients').update({ deleted_at: null }).eq('id', id);
+ if (error) { toast('⚠️ No se pudo restaurar: '+error.message, 5000); return; }
+ toast('Paciente restaurado ✓');
+ closeModal('papelera');
+ await dbLoad();
+ renderPatients();
+}
+
+async function eliminarPacienteDefinitivo(id) {
+ if (!confirm('¿Eliminar este paciente para siempre? Se borran también sus episodios, rutinas, informes y adjuntos. Esta acción no se puede deshacer.')) return;
+ const { error } = await sb.from('patients').delete().eq('id', id);
+ if (error) { toast('⚠️ No se pudo eliminar: '+error.message, 5000); return; }
+ toast('Paciente eliminado definitivamente');
+ abrirPapelera();
 }
 
 function unassignRoutine(pid, rid) {
@@ -4112,9 +4192,16 @@ function unassignRoutine(pid, rid) {
  migratePatientEpisodes(_p);
  const _epIdx = (typeof currentEpisodeIdx === 'number' && _p.episodios[currentEpisodeIdx]) ? currentEpisodeIdx : _p.episodios.length - 1;
  _p.episodios[_epIdx].routines = _p.episodios[_epIdx].routines.filter(r => r !== rid);
+ const r = routines.find(rr => rr.id === rid);
+ routines = routines.filter(rr => rr.id !== rid);
  openDetail(pid, _epIdx);
  renderPatients();
- lsSave(); toast('Rutina quitada');
+ toast('Rutina quitada');
+ if (r && r.custom && r.id) {
+   sb.from('patient_routines').delete().eq('id', rid).then(({error}) => {
+     if (error) { console.error('Error deleting routine:', error); toast('⚠️ No se pudo quitar en la nube: '+error.message, 5000); }
+   });
+ }
 }
 
 function clearPatientForm() {
@@ -4501,6 +4588,7 @@ function importRoutinesCSV(file) {
 
 function deleteRoutine(id) {
  if (!confirm('¿Eliminar esta rutina?')) return;
+ const r = routines.find(rr => rr.id === id);
  routines = routines.filter(r => r.id !== id);
  patients.forEach(p => { migratePatientEpisodes(p); p.episodios.forEach(e => { e.routines = (e.routines||[]).filter(rid => rid !== id); }); });
  if (selectedRoutineId === id) {
@@ -4508,7 +4596,12 @@ function deleteRoutine(id) {
  document.getElementById('routine-detail-panel').innerHTML = `<div class="sec-label">Detalle</div><div class="panel" style="padding:20px"><p style="color:var(--muted);font-size:13px;text-align:center;padding:20px 0">Seleccioná una rutina.</p></div>`;
  }
  renderRoutinesList();
- lsSave(); toast('Rutina eliminada');
+ toast('Rutina eliminada');
+ if (r && r.custom && r.id) {
+   sb.from('patient_routines').delete().eq('id', id).then(({error}) => {
+     if (error) { console.error('Error deleting routine:', error); toast('⚠️ No se pudo eliminar en la nube: '+error.message, 5000); }
+   });
+ }
 }
 
 function deletePatologia() {
@@ -4565,13 +4658,29 @@ function openAssign(routineId) {
  openModal('assign');
 }
 
-function confirmAssign() {
+async function confirmAssign() {
  const pid = parseInt(document.getElementById('assign-p-sel').value);
- patients.find(p => p.id === pid).routines.push(assignRoutineId);
+ const p = patients.find(pp => pp.id === pid);
+ const source = routines.find(r => r.id === assignRoutineId && r.custom) || routines.find(r => r.id === assignRoutineId);
+ if (!p || !source) return;
+ const cloned = {
+   ...JSON.parse(JSON.stringify(source)),
+   id: null,
+   custom: true,
+   kine: null,
+   _fromPreset: source.id,
+ };
+ routines.push(cloned);
+ migratePatientEpisodes(p);
+ const _epIdx = (typeof currentEpisodeIdx === 'number' && p.episodios[currentEpisodeIdx]) ? currentEpisodeIdx : p.episodios.length - 1;
+ await dbSaveRoutine(cloned, pid);
+ p.episodios[_epIdx].routines.push(cloned.id);
+ if (!p.episodios[_epIdx].routineKine) p.episodios[_epIdx].routineKine = {};
+ p.episodios[_epIdx].routineKine[cloned.id] = null;
  closeModal('assign');
- selectRoutine(assignRoutineId);
+ selectRoutine(cloned.id);
  renderPatients();
- lsSave(); toast('Rutina asignada ✓');
+ toast('Rutina asignada ✓');
 }
 
 // ========== DIAGNOSES ==========
@@ -4585,7 +4694,6 @@ function renderDiagView() {
  <div class="diag-grid">${ds.map(d => `
  <div class="diag-pill">
  <span>${d.nombre}</span>
- <button onclick="deleteDiag(${d.id})" title="Eliminar">×</button>
  </div>`).join('')}
  </div>
  </div>`).join('');
@@ -5366,19 +5474,19 @@ let exerciseBank = [
   { id:448, nombre:'Curl femoral en máquina', region:'Rodilla', macro:'Miembro inferior', tipo:'Fuerza / Resistencia', desc:'Flexión de rodilla en máquina.', yt:'' },
   { id:449, nombre:'Curl nórdico', region:'Rodilla', macro:'Miembro inferior', tipo:'Fuerza / Resistencia', desc:'Trabajo excéntrico avanzado de isquios.', yt:'' },
   { id:450, nombre:'Extensión de rodilla en máquina', region:'Rodilla', macro:'Miembro inferior', tipo:'Fuerza / Resistencia', desc:'Fortalecimiento analítico de cuádriceps.', yt:'' },
-  { id:452, nombre:'Elevación de talones unipodal', region:'Tobillo/Pie', macro:'Miembro inferior', tipo:'Fuerza / Resistencia', desc:'Trabajo unilateral de tríceps sural.', yt:'' },
-  { id:453, nombre:'Elevación de sóleo sentado', region:'Tobillo/Pie', macro:'Miembro inferior', tipo:'Fuerza / Resistencia', desc:'Fortalecimiento de sóleo con rodilla flexionada.', yt:'' },
-  { id:454, nombre:'Tibialis raises', region:'Tobillo/Pie', macro:'Miembro inferior', tipo:'Fuerza / Resistencia', desc:'Fortalecimiento del tibial anterior.', yt:'' },
-  { id:456, nombre:'Farmer carry', region:'Core/Abdomen', macro:'Core', tipo:'Fuerza / Resistencia', desc:'Caminata con carga bilateral sostenida.', yt:'' },
-  { id:458, nombre:'Suitcase carry', region:'Core/Abdomen', macro:'Core', tipo:'Fuerza / Resistencia', desc:'Carry unilateral con foco en estabilidad lateral.', yt:'' },
-  { id:465, nombre:'Rueda abdominal', region:'Core/Abdomen', macro:'Core', tipo:'Fuerza / Resistencia', desc:'Anti-extensión avanzada del core.', yt:'' },
-  { id:466, nombre:'Crunch en polea', region:'Core/Abdomen', macro:'Core', tipo:'Fuerza / Resistencia', desc:'Flexión de tronco con resistencia.', yt:'' },
-  { id:467, nombre:'Woodchop en polea', region:'Core/Abdomen', macro:'Core', tipo:'Fuerza / Resistencia', desc:'Patrón diagonal y rotacional de tronco.', yt:'' },
-  { id:468, nombre:'Remo con barra', region:'Dorsal', macro:'Miembro superior', tipo:'Fuerza / Resistencia', desc:'Tracción horizontal para espalda media.', yt:'' },
-  { id:469, nombre:'Remo con mancuerna', region:'Dorsal', macro:'Miembro superior', tipo:'Fuerza / Resistencia', desc:'Tracción unilateral con apoyo o sin apoyo.', yt:'' },
-  { id:470, nombre:'Remo en polea baja', region:'Dorsal', macro:'Miembro superior', tipo:'Fuerza / Resistencia', desc:'Trabajo guiado de espalda y escápulas.', yt:'' },
-  { id:471, nombre:'Jalón al pecho', region:'Dorsal', macro:'Miembro superior', tipo:'Fuerza / Resistencia', desc:'Tracción vertical para dorsal ancho.', yt:'' },
-  { id:472, nombre:'Dominadas asistidas', region:'Dorsal', macro:'Miembro superior', tipo:'Fuerza / Resistencia', desc:'Tracción vertical con asistencia.', yt:'' },
+  { id:452, nombre:'Elevación de talones unipodal', region:'Tobillo / Pie', macro:'Miembro inferior', tipo:'Fuerza / Resistencia', desc:'Trabajo unilateral de tríceps sural.', yt:'' },
+  { id:453, nombre:'Elevación de sóleo sentado', region:'Tobillo / Pie', macro:'Miembro inferior', tipo:'Fuerza / Resistencia', desc:'Fortalecimiento de sóleo con rodilla flexionada.', yt:'' },
+  { id:454, nombre:'Tibialis raises', region:'Tobillo / Pie', macro:'Miembro inferior', tipo:'Fuerza / Resistencia', desc:'Fortalecimiento del tibial anterior.', yt:'' },
+  { id:456, nombre:'Farmer carry', region:'Core / Abdomen', macro:'Core / Abdomen', tipo:'Fuerza / Resistencia', desc:'Caminata con carga bilateral sostenida.', yt:'' },
+  { id:458, nombre:'Suitcase carry', region:'Core / Abdomen', macro:'Core / Abdomen', tipo:'Fuerza / Resistencia', desc:'Carry unilateral con foco en estabilidad lateral.', yt:'' },
+  { id:465, nombre:'Rueda abdominal', region:'Core / Abdomen', macro:'Core / Abdomen', tipo:'Fuerza / Resistencia', desc:'Anti-extensión avanzada del core.', yt:'' },
+  { id:466, nombre:'Crunch en polea', region:'Core / Abdomen', macro:'Core / Abdomen', tipo:'Fuerza / Resistencia', desc:'Flexión de tronco con resistencia.', yt:'' },
+  { id:467, nombre:'Woodchop en polea', region:'Core / Abdomen', macro:'Core / Abdomen', tipo:'Fuerza / Resistencia', desc:'Patrón diagonal y rotacional de tronco.', yt:'' },
+  { id:468, nombre:'Remo con barra', region:'Columna dorsal', macro:'Columna', tipo:'Fuerza / Resistencia', desc:'Tracción horizontal para espalda media.', yt:'' },
+  { id:469, nombre:'Remo con mancuerna', region:'Columna dorsal', macro:'Columna', tipo:'Fuerza / Resistencia', desc:'Tracción unilateral con apoyo o sin apoyo.', yt:'' },
+  { id:470, nombre:'Remo en polea baja', region:'Columna dorsal', macro:'Columna', tipo:'Fuerza / Resistencia', desc:'Trabajo guiado de espalda y escápulas.', yt:'' },
+  { id:471, nombre:'Jalón al pecho', region:'Columna dorsal', macro:'Columna', tipo:'Fuerza / Resistencia', desc:'Tracción vertical para dorsal ancho.', yt:'' },
+  { id:472, nombre:'Dominadas asistidas', region:'Columna dorsal', macro:'Columna', tipo:'Fuerza / Resistencia', desc:'Tracción vertical con asistencia.', yt:'' },
   { id:473, nombre:'Face pull', region:'Hombro', macro:'Miembro superior', tipo:'Fuerza / Resistencia', desc:'Trabajo escapular y deltoides posterior.', yt:'' },
   { id:476, nombre:'Press de banca', region:'Hombro', macro:'Miembro superior', tipo:'Fuerza / Resistencia', desc:'Empuje horizontal de tren superior.', yt:'' },
   { id:477, nombre:'Press inclinado con mancuernas', region:'Hombro', macro:'Miembro superior', tipo:'Fuerza / Resistencia', desc:'Empuje inclinado para pectoral y hombro.', yt:'' },
@@ -5393,11 +5501,11 @@ let exerciseBank = [
   { id:489, nombre:'Fondos asistidos', region:'Codo', macro:'Miembro superior', tipo:'Fuerza / Resistencia', desc:'Empuje de tríceps y hombro en cadena cerrada.', yt:'' },
   { id:490, nombre:'Flexión de muñeca', region:'Muñeca', macro:'Miembro superior', tipo:'Fuerza / Resistencia', desc:'Trabajo de flexores de muñeca.', yt:'' },
   { id:491, nombre:'Extensión de muñeca', region:'Muñeca', macro:'Miembro superior', tipo:'Fuerza / Resistencia', desc:'Trabajo de extensores de muñeca.', yt:'' },
-  { id:493, nombre:'Circunducciones cervicales suaves', region:'Cervical', macro:'Columna', tipo:'Movilidad / Elongación', desc:'Movilidad controlada del cuello en rangos cómodos.', yt:'' },
-  { id:494, nombre:'Chin tuck', region:'Cervical', macro:'Columna', tipo:'Fuerza / Resistencia', desc:'Retracción cervical y control postural.', yt:'' },
+  { id:493, nombre:'Circunducciones cervicales suaves', region:'Columna cervical', macro:'Columna', tipo:'Movilidad / Elongación', desc:'Movilidad controlada del cuello en rangos cómodos.', yt:'' },
+  { id:494, nombre:'Chin tuck', region:'Columna cervical', macro:'Columna', tipo:'Fuerza / Resistencia', desc:'Retracción cervical y control postural.', yt:'' },
   { id:499, nombre:'Elongación de flexores de cadera', region:'Cadera', macro:'Miembro inferior', tipo:'Movilidad / Elongación', desc:'Mejora extensión de cadera y descarga lumbar.', yt:'' },
-  { id:506, nombre:'Star excursion', region:'Tobillo/Pie', macro:'Miembro inferior', tipo:'Propiocepción / Equilibrio', desc:'Control dinámico del apoyo en varias direcciones.', yt:'' },
-  { id:509, nombre:'TRX row controlado', region:'Dorsal', macro:'Miembro superior', tipo:'Propiocepción / Equilibrio', desc:'Tracción con inestabilidad relativa.', yt:'' },
+  { id:506, nombre:'Star excursion', region:'Tobillo / Pie', macro:'Miembro inferior', tipo:'Propiocepción / Equilibrio', desc:'Control dinámico del apoyo en varias direcciones.', yt:'' },
+  { id:509, nombre:'TRX row controlado', region:'Columna dorsal', macro:'Columna', tipo:'Propiocepción / Equilibrio', desc:'Tracción con inestabilidad relativa.', yt:'' },
   { id:510, nombre:'Bottom-up carry', region:'Hombro', macro:'Miembro superior', tipo:'Propiocepción / Equilibrio', desc:'Carry con kettlebell invertida para estabilidad.', yt:'' },
   { id:516, nombre:'Countermovement jump', region:'Rodilla', macro:'Miembro inferior', tipo:'Pliometría', desc:'Salto con contramovimiento.', yt:'' },
   { id:517, nombre:'Broad jump', region:'Rodilla', macro:'Miembro inferior', tipo:'Pliometría', desc:'Salto horizontal con doble apoyo.', yt:'' },
@@ -5407,8 +5515,8 @@ let exerciseBank = [
   { id:521, nombre:'Drop jump', region:'Rodilla', macro:'Miembro inferior', tipo:'Pliometría', desc:'Caída y salto reactivo desde cajón.', yt:'' },
   { id:522, nombre:'Wall dribbles', region:'Hombro', macro:'Miembro superior', tipo:'Pliometría', desc:'Reactividad de miembro superior contra pared.', yt:'' },
   { id:523, nombre:'Pases de pecho con pelota', region:'Hombro', macro:'Miembro superior', tipo:'Pliometría', desc:'Trabajo explosivo de tren superior.', yt:'' },
-  { id:524, nombre:'Slams con pelota', region:'Core/Abdomen', macro:'Core', tipo:'Pliometría', desc:'Potencia del core y tren superior.', yt:'' },
-  { id:525, nombre:'Side toss con pelota', region:'Core/Abdomen', macro:'Core', tipo:'Pliometría', desc:'Potencia rotacional y diagonal.', yt:'' },
+  { id:524, nombre:'Slams con pelota', region:'Core / Abdomen', macro:'Core / Abdomen', tipo:'Pliometría', desc:'Potencia del core y tren superior.', yt:'' },
+  { id:525, nombre:'Side toss con pelota', region:'Core / Abdomen', macro:'Core / Abdomen', tipo:'Pliometría', desc:'Potencia rotacional y diagonal.', yt:'' },
   { id:526, nombre:'Isométrico de flexión de rodilla a 30°', region:'Rodilla', macro:'Miembro inferior', tipo:'Fuerza / Resistencia', desc:'Contracción isométrica de isquiosurales con la rodilla a aproximadamente 30° de flexión.', yt:'' },
   { id:527, nombre:'Isométrico de flexión de rodilla a 60°', region:'Rodilla', macro:'Miembro inferior', tipo:'Fuerza / Resistencia', desc:'Contracción isométrica de isquiosurales con la rodilla a aproximadamente 60° de flexión.', yt:'' },
   { id:528, nombre:'Isométrico de flexión de rodilla a 90°', region:'Rodilla', macro:'Miembro inferior', tipo:'Fuerza / Resistencia', desc:'Contracción isométrica de isquiosurales con la rodilla a aproximadamente 90° de flexión.', yt:'' },
@@ -5594,39 +5702,52 @@ function updateExMacro() {
   };
   document.getElementById('aex-macro').value = macroMap[region] || 'Otros';
 }
-function saveExercise() {
+async function saveExercise() {
  const nombre = document.getElementById('aex-nombre').value.trim();
  if (!nombre) { shake('aex-nombre'); return; }
  const data = {
  nombre,
  region: document.getElementById('aex-region').value,
  tipo: document.getElementById('aex-tipo').value,
+ macro: document.getElementById('aex-macro').value,
  desc: document.getElementById('aex-desc').value.trim(),
  yt: normalizeYT(document.getElementById('aex-yt').value.trim()),
  };
+ const payload = { nombre: data.nombre, region: data.region, tipo: data.tipo, macro: data.macro, descripcion: data.desc, yt: data.yt, deleted: false };
  const editId = parseInt(document.getElementById('aex-id').value);
+ let oldNombre = null;
  if (editId) {
  const idx = exerciseBank.findIndex(e => e.id === editId);
- exerciseBank[idx] = { ...exerciseBank[idx], ...data, _modified: true };
- lsSave(); toast('Ejercicio actualizado ✓');
+ oldNombre = exerciseBank[idx].nombre;
+ exerciseBank[idx] = { ...exerciseBank[idx], ...data };
  } else {
- exerciseBank.push({ id: nextExId++, ...data, _modified: true });
- lsSave(); toast('Ejercicio agregado ✓');
+ exerciseBank.push({ id: nextExId++, ...data });
  }
  clearExForm();
  closeModal('add-exercise');
  renderExerciseBank();
+ toast(editId ? 'Ejercicio actualizado ✓' : 'Ejercicio agregado ✓');
+
+ if (oldNombre && oldNombre !== nombre) {
+   await sb.from('exercise_bank').upsert({ nombre: oldNombre, deleted: true }, { onConflict: 'nombre' });
+ }
+ const { error } = await sb.from('exercise_bank').upsert(payload, { onConflict: 'nombre' });
+ if (error) { console.error('Error saving exercise:', error); toast('⚠️ No se guardó en la nube: '+error.message, 5000); }
 }
 
-function deleteExercise() {
+async function deleteExercise() {
  const id = parseInt(document.getElementById('aex-id').value);
  if (!confirm('¿Eliminar este ejercicio?')) return;
+ const ex = exerciseBank.find(e => e.id === id);
  exerciseBank = exerciseBank.filter(e => e.id !== id);
- lsSave();
  clearExForm();
  closeModal('add-exercise');
  renderExerciseBank();
  toast('Ejercicio eliminado');
+ if (ex) {
+   const { error } = await sb.from('exercise_bank').upsert({ nombre: ex.nombre, deleted: true }, { onConflict: 'nombre' });
+   if (error) { console.error('Error deleting exercise from bank:', error); toast('⚠️ No se eliminó en la nube: '+error.message, 5000); }
+ }
 }
 
 function clearExForm() {
@@ -6945,7 +7066,8 @@ function togglePinnedPanel() {
 document.addEventListener('click', e => {
   const panel = document.getElementById('pinned-panel');
   const fab   = document.getElementById('pinned-fab');
-  if (pinnedPanelOpen && !panel.contains(e.target) && !fab.contains(e.target)) {
+  const path  = e.composedPath ? e.composedPath() : [];
+  if (pinnedPanelOpen && !path.includes(panel) && !path.includes(fab)) {
     pinnedPanelOpen = false;
     panel.classList.remove('open');
   }
@@ -7182,6 +7304,47 @@ async function finishCSVImport(patientId, routinesToImport) {
   }
 }
 
+async function descargarBackup() {
+  const btn = document.getElementById('backup-btn');
+  if (btn) { btn.disabled = true; btn.innerHTML = 'Generando...'; }
+  try {
+    const [infRes, adjRes, testsRes] = await Promise.all([
+      sb.from('informes').select('*'),
+      sb.from('hc_adjuntos').select('*'),
+      sb.from('custom_tests').select('*'),
+    ]);
+    const backup = {
+      generado: new Date().toISOString(),
+      app: 'Arena Kinesiología',
+      pacientes: patients,
+      rutinas: routines,
+      diagnosticos: diagnoses,
+      banco_ejercicios: exerciseBank,
+      informes: infRes.data || [],
+      adjuntos_hc: adjRes.data || [],
+      tests_personalizados: testsRes.data || [],
+    };
+    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const fecha = new Date().toISOString().slice(0,10);
+    a.href = url;
+    a.download = `backup_arena_kinesiologia_${fecha}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast('Backup descargado ✓');
+  } catch (err) {
+    console.error('Error generando backup:', err);
+    toast('⚠️ Error al generar el backup: '+err.message, 5000);
+  }
+  if (btn) {
+    btn.disabled = false;
+    btn.innerHTML = '<svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Descargar backup';
+  }
+}
+
 async function forceSync() {
   const btn = document.getElementById('sync-btn');
   if (btn) { btn.innerHTML = 'Guardando...'; btn.disabled = true; }
@@ -7209,7 +7372,7 @@ async function forceSync() {
   // 3. PULL: traer lo nuevo de Supabase sin borrar lo local
   if (btn) btn.innerHTML = 'Actualizando...';
   const [ptsRes, epsRes, prsRes] = await Promise.all([
-    sb.from('patients').select('*').order('apellido'),
+    sb.from('patients').select('*').is('deleted_at', null).order('apellido'),
     sb.from('episodes').select('*').order('id'),
     sb.from('patient_routines').select('*').order('id'),
   ]);
@@ -7220,7 +7383,7 @@ async function forceSync() {
       const existing = patients.find(lp => lp.id === p.id);
       if (!existing) {
         patients.push({id:p.id, nombre:p.nombre, apellido:p.apellido,
-          edad:p.edad||0, diagId:p.diagnosis_id, notas:p.notas||'', episodios:[]});
+          edad:p.edad||0, diagId:p.diagnosis_id, notas:p.notas||'', dni:p.dni||'', fechaNac:p.fecha_nac||'', episodios:[]});
       }
     });
   }
@@ -7309,7 +7472,7 @@ async function dbSavePatient(p) {
     console.error('No session when trying to save patient');
     return;
   }
-  const payload = {nombre:p.nombre,apellido:p.apellido,edad:p.edad||0,diagnosis_id:p.diagId||null,notas:p.notas||''};
+  const payload = {nombre:p.nombre,apellido:p.apellido,edad:p.edad||0,diagnosis_id:p.diagId||null,notas:p.notas||'',dni:p.dni||null,fecha_nac:p.fechaNac||null};
   if (p.id && Number.isInteger(p.id) && p.id > 0) {
     const { error } = await sb.from('patients').update(payload).eq('id', p.id);
     if (error) {
@@ -7359,17 +7522,17 @@ async function dbDeleteRoutine(id) {
 async function dbLoad() {
   toast('Cargando desde la nube...');
   const [ptsRes, epsRes, prsRes, exRes] = await Promise.all([
-    sb.from('patients').select('*').order('apellido'),
+    sb.from('patients').select('*').is('deleted_at', null).order('apellido'),
     sb.from('episodes').select('*').order('id'),
     sb.from('patient_routines').select('*').order('id'),
-    sb.from('exercise_bank').select('nombre,yt'),
+    sb.from('exercise_bank').select('nombre,yt,region,tipo,macro,descripcion,deleted'),
   ]);
 
   if (ptsRes.error) { console.error('patients:', ptsRes.error); }
   if (ptsRes.data) {
     patients = ptsRes.data.map(p => ({
       id:p.id, nombre:p.nombre, apellido:p.apellido,
-      edad:p.edad||0, diagId:p.diagnosis_id, notas:p.notas||'', episodios:[]
+      edad:p.edad||0, diagId:p.diagnosis_id, notas:p.notas||'', dni:p.dni||'', fechaNac:p.fecha_nac||'', episodios:[]
     }));
   }
 
@@ -7399,9 +7562,29 @@ async function dbLoad() {
   }
 
   if (exRes.data) {
+    let nextCustomExId = 900000;
     exRes.data.forEach(saved => {
       const idx = exerciseBank.findIndex(e => e.nombre === saved.nombre);
-      if (idx >= 0 && saved.yt) exerciseBank[idx].yt = saved.yt;
+      if (saved.deleted) {
+        if (idx >= 0) exerciseBank.splice(idx, 1);
+        return;
+      }
+      if (idx >= 0) {
+        exerciseBank[idx] = {
+          ...exerciseBank[idx],
+          region: saved.region || exerciseBank[idx].region,
+          tipo: saved.tipo || exerciseBank[idx].tipo,
+          macro: saved.macro || exerciseBank[idx].macro,
+          desc: saved.descripcion || exerciseBank[idx].desc,
+          yt: saved.yt || exerciseBank[idx].yt,
+        };
+      } else {
+        exerciseBank.push({
+          id: nextCustomExId++, nombre: saved.nombre,
+          region: saved.region||'', tipo: saved.tipo||'', macro: saved.macro||'',
+          desc: saved.descripcion||'', yt: saved.yt||'',
+        });
+      }
     });
   }
 }
