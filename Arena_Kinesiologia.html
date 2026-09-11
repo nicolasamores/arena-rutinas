@@ -3947,20 +3947,20 @@ document.getElementById('det-meta').textContent = `${_edad != null ? _edad+' añ
   openModal('patient-detail');
 }
 
-function addEpisodio(patientId) {
+async function addEpisodio(patientId) {
   const p = patients.find(p => p.id === patientId);
   migratePatientEpisodes(p);
   const newIdx = p.episodios.length;
+  const label = 'Episodio ' + (newIdx + 1);
+  const fecha = new Date().toLocaleDateString('es-AR');
+  const { data, error } = await sb.from('episodes').insert({
+    patient_id: patientId, diagnosis_id: null, label, fecha, notas: '', activo: true
+  }).select().single();
+  if (error) { toast('⚠️ No se pudo crear el episodio: '+error.message, 5000); return; }
   p.episodios.push({
-    idx: newIdx,
-    label: 'Episodio ' + (newIdx + 1),
-    fecha: new Date().toLocaleDateString('es-AR'),
-    diagId: null,
-    notas: '',
-    routines: [],
-    routineKine: {},
+    id: data.id, idx: newIdx, label, fecha, diagId: null, notas: '',
+    routines: [], routineKine: {},
   });
-  lsSave();
   openDetail(patientId, newIdx);
   // Let them edit metadata right away
   setTimeout(() => editEpisodioMeta(patientId, newIdx), 200);
@@ -4054,7 +4054,7 @@ function populateDiagSelect(selId) {
     ).join('');
 }
 
-function saveEpisodioMeta(patientId, epIdx) {
+async function saveEpisodioMeta(patientId, epIdx) {
   const p = patients.find(p => p.id === patientId);
   const ep = p.episodios[epIdx];
   ep.label  = document.getElementById('ep-label').value.trim() || ep.label;
@@ -4062,8 +4062,13 @@ function saveEpisodioMeta(patientId, epIdx) {
   ep.diagId = parseInt(document.getElementById('ep-diag-value').value) || null;
   ep.notas  = document.getElementById('ep-notas').value.trim();
   document.getElementById('ep-meta-modal').remove();
-  lsSave();
   openDetail(patientId, epIdx);
+  if (ep.id) {
+    const { error } = await sb.from('episodes').update({
+      label: ep.label, fecha: ep.fecha, diagnosis_id: ep.diagId, notas: ep.notas
+    }).eq('id', ep.id);
+    if (error) { toast('⚠️ No se pudo guardar el episodio: '+error.message, 5000); }
+  }
 }
 
 function deleteEpisodio(patientId, epIdx) {
@@ -7393,7 +7398,7 @@ async function forceSync() {
     epsRes.data.forEach(ep => {
       const pt = patients.find(p => p.id === ep.patient_id);
       if (pt && !pt.episodios.find(e => e.id === ep.id)) {
-        pt.episodios.push({id:ep.id, diagnosis:ep.diagnosis_id, routines:[], routineKine:{}});
+        pt.episodios.push({id:ep.id, label:ep.label||'', fecha:ep.fecha||'', diagId:ep.diagnosis_id, notas:ep.notas||'', routines:[], routineKine:{}});
       }
     });
   }
@@ -7453,8 +7458,10 @@ async function dbEnsureEpisode(patientId) {
   if (!pt) return null;
   const ep = pt.episodios?.find(e => e.id);
   if (ep?.id) return ep.id;
+  const target = pt.episodios && pt.episodios[0];
   const { data } = await sb.from('episodes').insert({
-    patient_id: patientId, diagnosis_id: pt.diagId||null, activo: true
+    patient_id: patientId, diagnosis_id: (target?.diagId ?? pt.diagId) || null,
+    label: target?.label || 'Episodio 1', fecha: target?.fecha || '', notas: target?.notas || '', activo: true
   }).select().single();
   if (data) {
     if (!pt.episodios) pt.episodios = [];
@@ -7540,7 +7547,7 @@ async function dbLoad() {
   if (epsRes.data) {
     epsRes.data.forEach(ep => {
       const pt = patients.find(p => p.id === ep.patient_id);
-      if (pt) pt.episodios.push({id:ep.id,diagnosis:ep.diagnosis_id,routines:[],routineKine:{}});
+      if (pt) pt.episodios.push({id:ep.id, label:ep.label||'', fecha:ep.fecha||'', diagId:ep.diagnosis_id, notas:ep.notas||'', routines:[], routineKine:{}});
     });
   }
 
@@ -8360,7 +8367,8 @@ async function dbEnsureEpisodeById(patientId, epIdx) {
   if (!ep) return null;
   if (ep.id) return ep.id;
   const { data, error } = await sb.from('episodes').insert({
-    patient_id: patientId, diagnosis_id: ep.diagId || pt.diagId || null, activo: true
+    patient_id: patientId, diagnosis_id: ep.diagId || pt.diagId || null,
+    label: ep.label || '', fecha: ep.fecha || '', notas: ep.notas || '', activo: true
   }).select().single();
   if (error) { console.error(error); return null; }
   if (data) { ep.id = data.id; return data.id; }
